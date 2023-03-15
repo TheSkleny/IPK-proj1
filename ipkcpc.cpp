@@ -9,6 +9,7 @@
 #include <arpa/inet.h>
 #include <netinet/in.h>
 #include <unistd.h>
+#include <signal.h>
 
 
 using namespace std;
@@ -81,47 +82,8 @@ int validate_args(int argc, vector <string> argv, string &host_address, int &por
     return 0;
 }
 
-
-int main(int argc, char *argv[])
-{
-    string host_address;
-    int port_number;
-    string protocol;
-
+int tcp_communication(struct sockaddr_in server_address, int socket_client){
     char buffer[128] = {0};
-
-    int socket_client;
-    struct sockaddr_in server_address;
-
-    vector <string> all_args = {argv, argv + argc};
-    
-    // validate arguments
-    if (validate_args(argc, all_args, host_address, port_number, protocol)){
-        return 1;
-    }
-    
-    // create socket
-    if (protocol == "tcp"){
-        socket_client = socket(AF_INET, SOCK_STREAM, 0);
-    }
-    else{
-        socket_client = socket(AF_INET, SOCK_DGRAM, 0);
-    }
-    if ((socket_client = socket(AF_INET, SOCK_STREAM, 0)) <= 0)
-	{
-		cerr << "Socket creation error" << endl;
-		return 1;
-	}
-
-    // fill server address
-    if (inet_pton(AF_INET, host_address.c_str(), &server_address.sin_addr) <= 0){
-        cerr << "Inet_pton error for" << host_address << endl;
-        return 1;
-    }
-
-    // fill rest of server address
-    server_address.sin_family = AF_INET;
-    server_address.sin_port = htons(port_number);
 
     // connect to server
     if (connect(socket_client, (struct sockaddr *)&server_address, sizeof(server_address)) != 0){
@@ -139,17 +101,74 @@ int main(int argc, char *argv[])
 
         // receive data from server
         if (recv(socket_client, buffer, 128, 0) < 0){
-            cerr << "Receive failed" << endl;
+            cerr << "Receive failed";
             return 1;
         }
-        cout << buffer << endl;
+        cout << buffer;
+        if (strcmp(buffer, "BYE\n") == 0){
+            break;
+        }
         memset(buffer, 0, 128);
     }
+
+    return 0;
+}
+
+
+int main(int argc, char *argv[])
+{
+    string host_address;
+    int port_number;
+    string protocol;
+
+    vector <string> all_args = {argv, argv + argc};
+
+    struct sockaddr_in server_address;   
+    int socket_client; 
+
+    // validate arguments
+    if (validate_args(argc, all_args, host_address, port_number, protocol)){
+        exit(1);
+    }
+
+    // fill rest of server address
+    server_address.sin_family = AF_INET;
+    server_address.sin_port = htons(port_number);
+
+    // fill server address
+    if (inet_pton(AF_INET, host_address.c_str(), &server_address.sin_addr) <= 0){
+        cerr << "Inet_pton error for" << host_address << endl;
+        exit(1);
+    }
+
+    
+    // create socket
+    if (protocol == "tcp"){
+        socket_client = socket(AF_INET, SOCK_STREAM, 0);
+        if(tcp_communication(server_address, socket_client)){
+            // close socket
+            shutdown(socket_client, SHUT_RDWR);
+            close(socket_client);
+            exit(1);
+        }
+    }
+    else{
+        socket_client = socket(AF_INET, SOCK_DGRAM, 0);
+        if(tcp_communication(server_address, socket_client)){
+            // close socket
+            shutdown(socket_client, SHUT_RDWR);
+            close(socket_client);
+            exit(1);
+        }
+    }
+    if ((socket_client = socket(AF_INET, SOCK_STREAM, 0)) <= 0)
+	{
+		cerr << "Socket creation error" << endl;
+		exit(1);
+	}
 
     // close socket
     shutdown(socket_client, SHUT_RDWR);
     close(socket_client);
-
-
     return 0;
 }
