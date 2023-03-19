@@ -85,6 +85,8 @@ int validate_args(int argc, vector <string> argv, string &host_address, int &por
 int tcp_communication(struct sockaddr_in server_address, int socket_client){
     char buffer[128] = {0};
 
+    
+
     // connect to server
     if (connect(socket_client, (struct sockaddr *)&server_address, sizeof(server_address)) != 0){
         cerr << "Connection failed" << endl;
