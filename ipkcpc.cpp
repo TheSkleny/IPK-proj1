@@ -185,7 +185,7 @@ int udp_communication(struct sockaddr_in server_address, int socket_client){
         }
 
         // receive data from server
-        if (recvfrom(socket_client, buffer, 128, 0, (struct sockaddr *)&server_address, &server_address_len) < 0){
+        if (recvfrom(socket_client, buffer, 256, 0, (struct sockaddr *)&server_address, &server_address_len) < 0){
             cerr << "Receive failed";
             delete[] buf;
             return 1;
