@@ -9,10 +9,13 @@
 #include <arpa/inet.h>
 #include <netinet/in.h>
 #include <unistd.h>
+#include <cstdlib>
 #include <signal.h>
 
 
 using namespace std;
+
+int socket_client; // global variable for socket
 
 int validate_args(int argc, vector <string> argv, string &host_address, int &port_number, string &protocol){
     bool h_flag = false;
@@ -82,6 +85,17 @@ int validate_args(int argc, vector <string> argv, string &host_address, int &por
     return 0;
 }
 
+void signal_callback_handler(int signum) {
+   cout << "Caught signal " << signum << endl;
+
+    send(socket_client, "BYE\n", strlen("BYE\n"), 0);
+    // close socket
+    shutdown(socket_client, SHUT_RDWR);
+    close(socket_client);
+    // Terminate program
+   exit(signum);
+}
+
 int tcp_communication(struct sockaddr_in server_address, int socket_client){
     char buffer[128] = {0};
 
@@ -125,7 +139,6 @@ int main(int argc, char *argv[])
     vector <string> all_args = {argv, argv + argc};
 
     struct sockaddr_in server_address;   
-    int socket_client; 
 
     // validate arguments
     if (validate_args(argc, all_args, host_address, port_number, protocol)){
@@ -142,7 +155,8 @@ int main(int argc, char *argv[])
         exit(1);
     }
 
-    
+    signal(SIGINT, signal_callback_handler);
+
     // create socket
     if (protocol == "tcp"){
         socket_client = socket(AF_INET, SOCK_STREAM, 0);
