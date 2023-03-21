@@ -16,7 +16,17 @@
 using namespace std;
 
 int socket_client; // global variable for socket
+bool is_udp = false; // global variable for protocol
 
+/*
+    * Function for validating arguments
+    * @param argc number of arguments
+    * @param argv vector of arguments
+    * @param host_address string for storing host address
+    * @param port_number int for storing port number
+    * @param protocol string for storing protocol
+    * @return 0 if arguments are valid, 1 otherwise
+*/
 int validate_args(int argc, vector <string> argv, string &host_address, int &port_number, string &protocol){
     bool h_flag = false;
     bool p_flag = false;
@@ -85,25 +95,43 @@ int validate_args(int argc, vector <string> argv, string &host_address, int &por
     return 0;
 }
 
-void signal_callback_handler(int signum) {
+/*
+    * Function for handling signals
+    * @param signum number of signal
+*/
+void signal_handler(int signum) {
     char buffer[128] = {0};
 
-    send(socket_client, "BYE\n", strlen("BYE\n"), 0);
-    // receive data from server
-    if (recv(socket_client, buffer, 128, 0) < 0){
-        cerr << "Receive failed";
-        exit(1);
+    if (is_udp){
+        char *buf = new char[2];
+        buf[0] = 0x00;
+        buf[1] = 0x00;
+        sendto(socket_client, buf, 2, 0, NULL, 0);
+        delete[] buf;
     }
-    cout << buffer;
+    else{
+        send(socket_client, "BYE\n", strlen("BYE\n"), 0);
+        // receive data from server
+        if (recv(socket_client, buffer, 128, 0) < 0){
+            cerr << "Receive failed";
+            exit(1);
+        }
+        cout << buffer;
 
-    // close socket
-    shutdown(socket_client, SHUT_RDWR);
-    close(socket_client);
-
+        // close socket
+        shutdown(socket_client, SHUT_RDWR);
+        close(socket_client);
+    }
     // Terminate program
     exit(signum);
 }
 
+/*
+    * Function for TCP communication
+    * @param server_address struct for storing server address
+    * @param socket_client socket for communication
+    * @return 0 if communication was successful, 1 otherwise
+*/
 int tcp_communication(struct sockaddr_in server_address, int socket_client){
     char buffer[128] = {0};
 
@@ -136,7 +164,58 @@ int tcp_communication(struct sockaddr_in server_address, int socket_client){
     return 0;
 }
 
+/*
+    * Function for UDP communication
+    * @param server_address struct for storing server address
+    * @param socket_client socket for communication
+    * @return 0 if communication was successful, 1 otherwise
+*/
+int udp_communication(struct sockaddr_in server_address, int socket_client){
+    char buffer[256] = {0, };
+    char buffer2[256] = {0, };
+    string input;
+    socklen_t server_address_len = sizeof(server_address);
 
+    // send data to server
+    while (getline(cin, input)){
+        char *buf = new char[input.length() + 2];
+        buf[0] = 0x00;
+        buf[1] = int8_t(input.length());
+        strcpy(buf + 2, input.c_str());
+
+        if (sendto(socket_client, buf, input.length() + 2, 0, (struct sockaddr *)&server_address, server_address_len) < 0){
+            cerr << "Send failed" << endl;
+            delete[] buf;
+            return 1;
+        }
+        memset(buffer, 0, 128);
+
+        // receive data from server
+        if (recvfrom(socket_client, buffer, 128, 0, (struct sockaddr *)&server_address, &server_address_len) < 0){
+            cerr << "Receive failed";
+            delete[] buf;
+            return 1;
+        }
+        memcpy(buffer2, buffer + 3, (int)buffer[2]);
+        if (buffer[1] == 0x00){
+            cout << "OK: " << buffer2 << endl;
+        }
+        else{
+            cout << "ERR: " << buffer2 << endl;
+        }
+        memset(buffer, 0, 256);
+        memset(buffer2, 0, 256);
+        delete[] buf;
+    }
+    return 0;
+}
+
+/*
+    * Main function
+    * @param argc number of arguments
+    * @param argv array of arguments
+    * @return 0 if program was successful, 1 otherwise
+*/
 int main(int argc, char *argv[])
 {
     string host_address;
@@ -162,7 +241,7 @@ int main(int argc, char *argv[])
         exit(1);
     }
 
-    signal(SIGINT, signal_callback_handler);
+    signal(SIGINT, signal_handler);
 
     // create socket
     if (protocol == "tcp"){
@@ -175,8 +254,9 @@ int main(int argc, char *argv[])
         }
     }
     else{
+        is_udp = true;
         socket_client = socket(AF_INET, SOCK_DGRAM, 0);
-        if(tcp_communication(server_address, socket_client)){
+        if(udp_communication(server_address, socket_client)){
             // close socket
             shutdown(socket_client, SHUT_RDWR);
             close(socket_client);
