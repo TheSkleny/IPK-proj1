@@ -4,7 +4,7 @@
 
 #include <iostream>
 #include <regex>
-#include <sys/socket.h>
+#include <sys/socket.h> // this library is not suitable for windows, should be used winsock2.h instead
 #include <netdb.h>
 #include <arpa/inet.h>
 #include <netinet/in.h>
