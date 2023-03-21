@@ -86,19 +86,26 @@ int validate_args(int argc, vector <string> argv, string &host_address, int &por
 }
 
 void signal_callback_handler(int signum) {
-   cout << "Caught signal " << signum << endl;
+    char buffer[128] = {0};
 
     send(socket_client, "BYE\n", strlen("BYE\n"), 0);
+    // receive data from server
+    if (recv(socket_client, buffer, 128, 0) < 0){
+        cerr << "Receive failed";
+        exit(1);
+    }
+    cout << buffer;
+
     // close socket
     shutdown(socket_client, SHUT_RDWR);
     close(socket_client);
+
     // Terminate program
-   exit(signum);
+    exit(signum);
 }
 
 int tcp_communication(struct sockaddr_in server_address, int socket_client){
     char buffer[128] = {0};
-
 
     // connect to server
     if (connect(socket_client, (struct sockaddr *)&server_address, sizeof(server_address)) != 0){
