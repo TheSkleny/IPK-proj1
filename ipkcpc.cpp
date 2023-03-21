@@ -102,14 +102,7 @@ int validate_args(int argc, vector <string> argv, string &host_address, int &por
 void signal_handler(int signum) {
     char buffer[128] = {0};
 
-    if (is_udp){
-        char *buf = new char[2];
-        buf[0] = 0x00;
-        buf[1] = 0x00;
-        sendto(socket_client, buf, 2, 0, NULL, 0);
-        delete[] buf;
-    }
-    else{
+    if (!is_udp){
         send(socket_client, "BYE\n", strlen("BYE\n"), 0);
         // receive data from server
         if (recv(socket_client, buffer, 128, 0) < 0){
@@ -117,11 +110,12 @@ void signal_handler(int signum) {
             exit(1);
         }
         cout << buffer;
-
-        // close socket
-        shutdown(socket_client, SHUT_RDWR);
-        close(socket_client);
     }
+    
+    // close socket
+    shutdown(socket_client, SHUT_RDWR);
+    close(socket_client);
+    
     // Terminate program
     exit(signum);
 }
@@ -183,12 +177,12 @@ int udp_communication(struct sockaddr_in server_address, int socket_client){
         buf[1] = int8_t(input.length());
         strcpy(buf + 2, input.c_str());
 
+        // send data to server
         if (sendto(socket_client, buf, input.length() + 2, 0, (struct sockaddr *)&server_address, server_address_len) < 0){
             cerr << "Send failed" << endl;
             delete[] buf;
             return 1;
         }
-        memset(buffer, 0, 128);
 
         // receive data from server
         if (recvfrom(socket_client, buffer, 128, 0, (struct sockaddr *)&server_address, &server_address_len) < 0){
@@ -196,6 +190,8 @@ int udp_communication(struct sockaddr_in server_address, int socket_client){
             delete[] buf;
             return 1;
         }
+
+        // get data from buffer and print them
         memcpy(buffer2, buffer + 3, (int)buffer[2]);
         if (buffer[1] == 0x00){
             cout << "OK: " << buffer2 << endl;
@@ -203,6 +199,8 @@ int udp_communication(struct sockaddr_in server_address, int socket_client){
         else{
             cout << "ERR: " << buffer2 << endl;
         }
+
+        // memory cleanup
         memset(buffer, 0, 256);
         memset(buffer2, 0, 256);
         delete[] buf;
