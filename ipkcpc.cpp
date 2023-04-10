@@ -194,10 +194,10 @@ int udp_communication(struct sockaddr_in server_address, int socket_client){
         // get data from buffer and print them
         memcpy(buffer2, buffer + 3, (int)buffer[2]);
         if (buffer[1] == 0x00){
-            cout << "OK: " << buffer2 << endl;
+            cout << "OK:" << buffer2 << endl;
         }
         else{
-            cout << "ERR: " << buffer2 << endl;
+            cout << "ERR:" << buffer2 << endl;
         }
 
         // memory cleanup
